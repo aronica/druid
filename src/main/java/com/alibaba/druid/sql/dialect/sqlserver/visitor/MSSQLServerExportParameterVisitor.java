@@ -1,5 +1,5 @@
 /*
- * Copyright 1999-2101 Alibaba Group Holding Ltd.
+ * Copyright 1999-2017 Alibaba Group Holding Ltd.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -28,7 +28,7 @@ import com.alibaba.druid.sql.ast.statement.SQLSelectItem;
 import com.alibaba.druid.sql.visitor.ExportParameterVisitor;
 import com.alibaba.druid.sql.visitor.ExportParameterVisitorUtils;
 
-public class MSSQLServerExportParameterVisitor extends SQLServerParameterizedOutputVisitor implements ExportParameterVisitor {
+public class MSSQLServerExportParameterVisitor extends SQLServerOutputVisitor implements ExportParameterVisitor {
 
     /**
      * true= if require parameterized sql output
@@ -36,7 +36,7 @@ public class MSSQLServerExportParameterVisitor extends SQLServerParameterizedOut
     private final boolean requireParameterizedOutput;
 
     public MSSQLServerExportParameterVisitor(final List<Object> parameters,final Appendable appender,final boolean wantParameterizedOutput){
-        super(appender);
+        super(appender, true);
         this.parameters = parameters;
         this.requireParameterizedOutput = wantParameterizedOutput;
     }

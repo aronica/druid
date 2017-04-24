@@ -1,5 +1,5 @@
 /*
- * Copyright 1999-2101 Alibaba Group Holding Ltd.
+ * Copyright 1999-2017 Alibaba Group Holding Ltd.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,50 +20,8 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 
-import com.alibaba.druid.sql.ast.SQLCommentHint;
-import com.alibaba.druid.sql.ast.SQLDataType;
-import com.alibaba.druid.sql.ast.SQLDataTypeImpl;
-import com.alibaba.druid.sql.ast.SQLExpr;
-import com.alibaba.druid.sql.ast.SQLName;
-import com.alibaba.druid.sql.ast.SQLObject;
-import com.alibaba.druid.sql.ast.SQLOrderBy;
-import com.alibaba.druid.sql.ast.SQLOrderingSpecification;
-import com.alibaba.druid.sql.ast.SQLOver;
-import com.alibaba.druid.sql.ast.SQLPartitionValue;
-import com.alibaba.druid.sql.ast.expr.SQLAggregateExpr;
-import com.alibaba.druid.sql.ast.expr.SQLAggregateOption;
-import com.alibaba.druid.sql.ast.expr.SQLAllColumnExpr;
-import com.alibaba.druid.sql.ast.expr.SQLAllExpr;
-import com.alibaba.druid.sql.ast.expr.SQLAnyExpr;
-import com.alibaba.druid.sql.ast.expr.SQLBetweenExpr;
-import com.alibaba.druid.sql.ast.expr.SQLBinaryOpExpr;
-import com.alibaba.druid.sql.ast.expr.SQLBinaryOperator;
-import com.alibaba.druid.sql.ast.expr.SQLBooleanExpr;
-import com.alibaba.druid.sql.ast.expr.SQLCaseExpr;
-import com.alibaba.druid.sql.ast.expr.SQLCastExpr;
-import com.alibaba.druid.sql.ast.expr.SQLCharExpr;
-import com.alibaba.druid.sql.ast.expr.SQLCurrentOfCursorExpr;
-import com.alibaba.druid.sql.ast.expr.SQLDefaultExpr;
-import com.alibaba.druid.sql.ast.expr.SQLExistsExpr;
-import com.alibaba.druid.sql.ast.expr.SQLGroupingSetExpr;
-import com.alibaba.druid.sql.ast.expr.SQLHexExpr;
-import com.alibaba.druid.sql.ast.expr.SQLIdentifierExpr;
-import com.alibaba.druid.sql.ast.expr.SQLInListExpr;
-import com.alibaba.druid.sql.ast.expr.SQLInSubQueryExpr;
-import com.alibaba.druid.sql.ast.expr.SQLIntegerExpr;
-import com.alibaba.druid.sql.ast.expr.SQLListExpr;
-import com.alibaba.druid.sql.ast.expr.SQLMethodInvokeExpr;
-import com.alibaba.druid.sql.ast.expr.SQLNCharExpr;
-import com.alibaba.druid.sql.ast.expr.SQLNotExpr;
-import com.alibaba.druid.sql.ast.expr.SQLNullExpr;
-import com.alibaba.druid.sql.ast.expr.SQLNumberExpr;
-import com.alibaba.druid.sql.ast.expr.SQLPropertyExpr;
-import com.alibaba.druid.sql.ast.expr.SQLQueryExpr;
-import com.alibaba.druid.sql.ast.expr.SQLSequenceExpr;
-import com.alibaba.druid.sql.ast.expr.SQLSomeExpr;
-import com.alibaba.druid.sql.ast.expr.SQLUnaryExpr;
-import com.alibaba.druid.sql.ast.expr.SQLUnaryOperator;
-import com.alibaba.druid.sql.ast.expr.SQLVariantRefExpr;
+import com.alibaba.druid.sql.ast.*;
+import com.alibaba.druid.sql.ast.expr.*;
 import com.alibaba.druid.sql.ast.statement.SQLNotNullConstraint;
 import com.alibaba.druid.sql.ast.statement.SQLNullConstraint;
 import com.alibaba.druid.sql.ast.statement.SQLAssignItem;
@@ -84,6 +42,7 @@ import com.alibaba.druid.sql.ast.statement.SQLSelectItem;
 import com.alibaba.druid.sql.ast.statement.SQLSelectOrderByItem;
 import com.alibaba.druid.sql.ast.statement.SQLUnique;
 import com.alibaba.druid.sql.ast.statement.SQLUpdateSetItem;
+import com.alibaba.druid.sql.dialect.postgresql.ast.expr.PGPolygonExpr;
 import com.alibaba.druid.util.JdbcConstants;
 
 public class SQLExprParser extends SQLParser {
@@ -180,6 +139,21 @@ public class SQLExprParser extends SQLParser {
             SQLExpr rightExp = primary();
             expr = new SQLBinaryOpExpr(expr, SQLBinaryOperator.PoundGtGt, rightExp, getDbType());
             expr = bitXorRest(expr);
+        } else if (token == Token.QUESQUES) {
+            lexer.nextToken();
+            SQLExpr rightExp = primary();
+            expr = new SQLBinaryOpExpr(expr, SQLBinaryOperator.QuesQues, rightExp, getDbType());
+            expr = bitXorRest(expr);
+        } else if (token == Token.QUESBAR) {
+            lexer.nextToken();
+            SQLExpr rightExp = primary();
+            expr = new SQLBinaryOpExpr(expr, SQLBinaryOperator.QuesBar, rightExp, getDbType());
+            expr = bitXorRest(expr);
+        } else if (token == Token.QUESAMP) {
+            lexer.nextToken();
+            SQLExpr rightExp = primary();
+            expr = new SQLBinaryOpExpr(expr, SQLBinaryOperator.QuesAmp, rightExp, getDbType());
+            expr = bitXorRest(expr);
         }
 
         return expr;
@@ -191,17 +165,18 @@ public class SQLExprParser extends SQLParser {
     }
 
     public SQLExpr multiplicativeRest(SQLExpr expr) {
-        if (lexer.token() == Token.STAR) {
+        final Token token = lexer.token();
+        if (token == Token.STAR) {
             lexer.nextToken();
             SQLExpr rightExp = bitXor();
             expr = new SQLBinaryOpExpr(expr, SQLBinaryOperator.Multiply, rightExp, getDbType());
             expr = multiplicativeRest(expr);
-        } else if (lexer.token() == Token.SLASH) {
+        } else if (token == Token.SLASH) {
             lexer.nextToken();
             SQLExpr rightExp = bitXor();
             expr = new SQLBinaryOpExpr(expr, SQLBinaryOperator.Divide, rightExp, getDbType());
             expr = multiplicativeRest(expr);
-        } else if (lexer.token() == Token.PERCENT) {
+        } else if (token == Token.PERCENT) {
             lexer.nextToken();
             SQLExpr rightExp = bitXor();
             expr = new SQLBinaryOpExpr(expr, SQLBinaryOperator.Modulus, rightExp, getDbType());
@@ -252,8 +227,22 @@ public class SQLExprParser extends SQLParser {
                 sqlExpr = new SQLIdentifierExpr("INSERT");
                 break;
             case IDENTIFIER:
-                sqlExpr = new SQLIdentifierExpr(lexer.stringVal());
+                String ident = lexer.stringVal();
                 lexer.nextToken();
+
+                if ("DATE".equalsIgnoreCase(ident)
+                        && lexer.token() == Token.LITERAL_CHARS
+                        && (JdbcConstants.ORACLE.equals(getDbType())
+                            || JdbcConstants.POSTGRESQL.equals(getDbType()))) {
+                    String literal = lexer.stringVal();
+                    lexer.nextToken();
+
+                    SQLDateExpr dateExpr = new SQLDateExpr();
+                    dateExpr.setLiteral(literal);
+                    sqlExpr = dateExpr;
+                } else {
+                    sqlExpr = new SQLIdentifierExpr(ident);
+                }
                 break;
             case NEW:
                 throw new ParserException("TODO");
@@ -369,6 +358,8 @@ public class SQLExprParser extends SQLParser {
             case EXCEPTION:
             case FUNCTION:
             case IDENTITY:
+            case EXTRACT:
+            case DESC:
                 sqlExpr = new SQLIdentifierExpr(lexer.stringVal());
                 lexer.nextToken();
                 break;
@@ -433,7 +424,9 @@ public class SQLExprParser extends SQLParser {
                 }
                 break;
             case SELECT:
-                SQLQueryExpr queryExpr = new SQLQueryExpr(createSelectParser().select());
+                SQLQueryExpr queryExpr = new SQLQueryExpr(
+                        createSelectParser()
+                                .select());
                 sqlExpr = queryExpr;
                 break;
             case CAST:
@@ -486,10 +479,13 @@ public class SQLExprParser extends SQLParser {
                         sqlExpr = new SQLUnaryExpr(SQLUnaryOperator.Negative, sqlExpr);
 
                         break;
-                    case QUES:
-                        sqlExpr = new SQLUnaryExpr(SQLUnaryOperator.Negative, new SQLVariantRefExpr("?"));
+                    case QUES: {
+                        SQLVariantRefExpr variantRefExpr = new SQLVariantRefExpr("?");
+                        variantRefExpr.setIndex(lexer.nextVarIndex());
+                        sqlExpr = new SQLUnaryExpr(SQLUnaryOperator.Negative, variantRefExpr);
                         lexer.nextToken();
                         break;
+                    }
                     case LPAREN:
                         lexer.nextToken();
                         sqlExpr = expr();
@@ -786,6 +782,12 @@ public class SQLExprParser extends SQLParser {
         }
 
         if (expr instanceof SQLName || expr instanceof SQLDefaultExpr || expr instanceof SQLCharExpr) {
+            boolean distinct = false;
+            if (lexer.token() == Token.DISTINCT) {
+                lexer.nextToken();
+                distinct = true;
+            }
+
             String methodName;
 
             SQLMethodInvokeExpr methodInvokeExpr;
@@ -800,12 +802,21 @@ public class SQLExprParser extends SQLParser {
 
             if (isAggreateFunction(methodName)) {
                 SQLAggregateExpr aggregateExpr = parseAggregateExpr(methodName);
+                if (distinct) {
+                    aggregateExpr.setOption(SQLAggregateOption.DISTINCT);
+                }
 
                 return aggregateExpr;
             }
 
             if (lexer.token() != Token.RPAREN) {
                 exprList(methodInvokeExpr.getParameters(), methodInvokeExpr);
+            }
+
+            if (lexer.token() == Token.FROM) {
+                lexer.nextToken();
+                SQLExpr from = this.expr();
+                methodInvokeExpr.setFrom(from);
             }
 
             accept(Token.RPAREN);
@@ -984,6 +995,7 @@ public class SQLExprParser extends SQLParser {
                     // binary有很多含义，lexer识别了这个token，实际上应该当做普通IDENTIFIER
                 case BINARY:
                 case OVER:
+                case ORDER:
                     identName = lexer.stringVal();
                     lexer.nextToken();
                     break;
@@ -1093,6 +1105,75 @@ public class SQLExprParser extends SQLParser {
             over.setOf(of);
         }
 
+        SQLOver.WindowingType windowingType = null;
+        if (identifierEquals("ROWS")) {
+            windowingType = SQLOver.WindowingType.ROWS;
+        } else if (identifierEquals("RANGE")) {
+            windowingType = SQLOver.WindowingType.RANGE;
+        }
+
+        if (windowingType != null) {
+            over.setWindowingType(windowingType);
+            lexer.nextToken();
+
+            if (lexer.token == Token.BETWEEN) {
+                lexer.nextToken();
+                SQLIntegerExpr rowsBegin = (SQLIntegerExpr) this.primary();
+                over.setWindowingBetweenBegin(rowsBegin);
+
+                if (identifierEquals("PRECEDING")) {
+                    over.setWindowingBetweenBeginPreceding(true);
+                    lexer.nextToken();
+                } else if (identifierEquals("FOLLOWING")) {
+                    over.setWindowingBetweenBeginFollowing(true);
+                    lexer.nextToken();
+                }
+
+                accept(Token.AND);
+
+                SQLIntegerExpr betweenEnd = (SQLIntegerExpr) this.primary();
+                over.setWindowingBetweenEnd(betweenEnd);
+
+                if (identifierEquals("PRECEDING")) {
+                    over.setWindowingBetweenEndPreceding(true);
+                    lexer.nextToken();
+                } else if (identifierEquals("FOLLOWING")) {
+                    over.setWindowingBetweenEndFollowing(true);
+                    lexer.nextToken();
+                }
+
+            } else {
+
+                if (identifierEquals("CURRENT")) {
+                    lexer.nextToken();
+                    acceptIdentifier("ROW");
+                    over.setWindowing(new SQLIdentifierExpr("CURRENT ROW"));
+                } else  if (identifierEquals("UNBOUNDED")) {
+                    lexer.nextToken();
+                    over.setWindowing(new SQLIdentifierExpr("UNBOUNDED"));
+
+                    if (identifierEquals("PRECEDING")) {
+                        over.setWindowingPreceding(true);
+                        lexer.nextToken();
+                    } else if (identifierEquals("FOLLOWING")) {
+                        over.setWindowingFollowing(true);
+                        lexer.nextToken();
+                    }
+                } else {
+                    SQLIntegerExpr rowsExpr = (SQLIntegerExpr) this.primary();
+                    over.setWindowing(rowsExpr);
+
+                    if (identifierEquals("PRECEDING")) {
+                        over.setWindowingPreceding(true);
+                        lexer.nextToken();
+                    } else if (identifierEquals("FOLLOWING")) {
+                        over.setWindowingFollowing(true);
+                        lexer.nextToken();
+                    }
+                }
+            }
+        }
+
         accept(Token.RPAREN);
         aggregateExpr.setOver(over);
     }
@@ -1138,6 +1219,19 @@ public class SQLExprParser extends SQLParser {
         } else if (lexer.token() == Token.DESC) {
             lexer.nextToken();
             item.setType(SQLOrderingSpecification.DESC);
+        }
+
+        if (identifierEquals("NULLS")) {
+            lexer.nextToken();
+            if (identifierEquals("FIRST")) {
+                lexer.nextToken();
+                item.setNullsOrderType(SQLSelectOrderByItem.NullsOrderType.NullsFirst);
+            } else if (identifierEquals("LAST")) {
+                lexer.nextToken();
+                item.setNullsOrderType(SQLSelectOrderByItem.NullsOrderType.NullsLast);
+            } else {
+                throw new ParserException("TODO " + lexer.token());
+            }
         }
 
         return item;
@@ -1317,7 +1411,8 @@ public class SQLExprParser extends SQLParser {
 
     public SQLExpr andRest(SQLExpr expr) {
         for (;;) {
-            if (lexer.token() == Token.AND || lexer.token() == Token.AMPAMP) {
+            Token token = lexer.token();
+            if (token == Token.AND || token == Token.AMPAMP) {
                 if (lexer.isKeepComments() && lexer.hasComment()) {
                     expr.addAfterComment(lexer.readAndResetComments());
                 }
@@ -1326,7 +1421,11 @@ public class SQLExprParser extends SQLParser {
 
                 SQLExpr rightExp = relational();
 
-                expr = new SQLBinaryOpExpr(expr, SQLBinaryOperator.BooleanAnd, rightExp, getDbType());
+                SQLBinaryOperator operator = token == Token.AMPAMP && JdbcConstants.POSTGRESQL.equals(getDbType()) ?
+                        SQLBinaryOperator.PG_And
+                        : SQLBinaryOperator.BooleanAnd;
+
+                expr = new SQLBinaryOpExpr(expr, operator, rightExp, getDbType());
             } else {
                 break;
             }
@@ -1455,6 +1554,34 @@ public class SQLExprParser extends SQLParser {
             rightExp = relationalRest(rightExp);
 
             expr = new SQLBinaryOpExpr(expr, SQLBinaryOperator.RLike, rightExp, getDbType());
+        } else if (lexer.token() == Token.ILIKE) {
+            lexer.nextToken();
+            rightExp = equality();
+
+            rightExp = relationalRest(rightExp);
+
+            expr = new SQLBinaryOpExpr(expr, SQLBinaryOperator.ILike, rightExp, getDbType());
+        } else if (lexer.token() == Token.MONKEYS_AT_AT) {
+            lexer.nextToken();
+            rightExp = equality();
+
+            rightExp = relationalRest(rightExp);
+
+            expr = new SQLBinaryOpExpr(expr, SQLBinaryOperator.AT_AT, rightExp, getDbType());
+        } else if (lexer.token() == Token.MONKEYS_AT_GT) {
+            lexer.nextToken();
+            rightExp = equality();
+
+            rightExp = relationalRest(rightExp);
+
+            expr = new SQLBinaryOpExpr(expr, SQLBinaryOperator.Array_Contains, rightExp, getDbType());
+        } else if (lexer.token() == Token.LT_MONKEYS_AT) {
+            lexer.nextToken();
+            rightExp = equality();
+
+            rightExp = relationalRest(rightExp);
+
+            expr = new SQLBinaryOpExpr(expr, SQLBinaryOperator.Array_ContainedBy, rightExp, getDbType());
         } else if (lexer.token() == (Token.NOT)) {
             lexer.nextToken();
             expr = notRationalRest(expr);
@@ -1477,6 +1604,57 @@ public class SQLExprParser extends SQLParser {
             }
         } else if (lexer.token() == Token.IN) {
             expr = inRest(expr);
+        } else if (JdbcConstants.POSTGRESQL.equals(lexer.dbType)) {
+            if (identifierEquals("SIMILAR")) {
+                lexer.nextToken();
+                accept(Token.TO);
+
+                rightExp = equality();
+
+                rightExp = relationalRest(rightExp);
+
+                expr = new SQLBinaryOpExpr(expr, SQLBinaryOperator.SIMILAR_TO, rightExp, getDbType());
+            } else if (lexer.token() == Token.TILDE) {
+                lexer.nextToken();
+
+                rightExp = equality();
+
+                rightExp = relationalRest(rightExp);
+
+                expr = new SQLBinaryOpExpr(expr, SQLBinaryOperator.POSIX_Regular_Match, rightExp, getDbType());
+            } else if (lexer.token() == Token.TILDE_STAR) {
+                lexer.nextToken();
+
+                rightExp = equality();
+
+                rightExp = relationalRest(rightExp);
+
+                expr = new SQLBinaryOpExpr(expr, SQLBinaryOperator.POSIX_Regular_Match_Insensitive, rightExp, getDbType());
+            } else if (lexer.token() == Token.BANG_TILDE) {
+                lexer.nextToken();
+
+                rightExp = equality();
+
+                rightExp = relationalRest(rightExp);
+
+                expr = new SQLBinaryOpExpr(expr, SQLBinaryOperator.POSIX_Regular_Not_Match, rightExp, getDbType());
+            } else if (lexer.token() == Token.BANG_TILDE_STAR) {
+                lexer.nextToken();
+
+                rightExp = equality();
+
+                rightExp = relationalRest(rightExp);
+
+                expr = new SQLBinaryOpExpr(expr, SQLBinaryOperator.POSIX_Regular_Not_Match_POSIX_Regular_Match_Insensitive, rightExp, getDbType());
+            } else if (lexer.token() == Token.TILDE_EQ) {
+                lexer.nextToken();
+
+                rightExp = equality();
+
+                rightExp = relationalRest(rightExp);
+
+                expr = new SQLBinaryOpExpr(expr, SQLBinaryOperator.SAME_AS, rightExp, getDbType());
+            }
         }
 
         return expr;
@@ -1535,6 +1713,13 @@ public class SQLExprParser extends SQLParser {
             rightExp = relationalRest(rightExp);
 
             return new SQLBinaryOpExpr(expr, SQLBinaryOperator.NotRLike, rightExp, getDbType());
+        } else if (lexer.token() == Token.ILIKE) {
+            lexer.nextToken();
+            SQLExpr rightExp = primary();
+
+            rightExp = relationalRest(rightExp);
+
+            return new SQLBinaryOpExpr(expr, SQLBinaryOperator.NotILike, rightExp, getDbType());
         } else {
             throw new ParserException("TODO " + lexer.token());
         }
@@ -1574,7 +1759,14 @@ public class SQLExprParser extends SQLParser {
                 accept(Token.RPAREN);
             }
 
-            return parseCharTypeRest(charType);
+            charType = (SQLCharacterDataType) parseCharTypeRest(charType);
+
+            if (lexer.token() == Token.HINT) {
+                List<SQLCommentHint> hints = this.parseHints();
+                charType.setHints(hints);
+            }
+
+            return charType;
         }
 
         if ("character".equalsIgnoreCase(typeName) && "varying".equalsIgnoreCase(lexer.stringVal())) {
@@ -1683,7 +1875,12 @@ public class SQLExprParser extends SQLParser {
         if (lexer.token() == Token.NOT) {
             lexer.nextToken();
             accept(Token.NULL);
-            column.addConstraint(new SQLNotNullConstraint());
+            SQLNotNullConstraint notNull = new SQLNotNullConstraint();
+            if (lexer.token() == Token.HINT) {
+                List<SQLCommentHint> hints = this.parseHints();
+                notNull.setHints(hints);
+            }
+            column.addConstraint(notNull);
             return parseColumnRest(column);
         }
 
@@ -1846,7 +2043,22 @@ public class SQLExprParser extends SQLParser {
                 item.setValue(new SQLIdentifierExpr(lexer.stringVal()));
                 lexer.nextToken();
             } else {
-                item.setValue(expr());
+                SQLExpr expr = expr();
+
+                if (lexer.token() == Token.COMMA && JdbcConstants.POSTGRESQL.equals(dbType)) {
+                    SQLListExpr listExpr = new SQLListExpr();
+                    listExpr.addItem(expr);
+                    expr.setParent(listExpr);
+                    do {
+                        lexer.nextToken();
+                        SQLExpr listItem = this.expr();
+                        listItem.setParent(listExpr);
+                        listExpr.addItem(listItem);
+                    } while (lexer.token() == Token.COMMA);
+                    item.setValue(listExpr);
+                } else {
+                    item.setValue(expr);
+                }
             }
         }
 
@@ -1937,12 +2149,27 @@ public class SQLExprParser extends SQLParser {
         SQLExpr expr;
         boolean connectByRoot = false;
         if (lexer.token() == Token.IDENTIFIER) {
-            if (identifierEquals("CONNECT_BY_ROOT")) {
-                connectByRoot = true;
-                lexer.nextToken();
-            }
-            expr = new SQLIdentifierExpr(lexer.stringVal());
+            String ident = lexer.stringVal();
             lexer.nextTokenComma();
+
+            if ("CONNECT_BY_ROOT".equalsIgnoreCase(ident)) {
+                connectByRoot = true;
+                expr = new SQLIdentifierExpr(lexer.stringVal());
+                lexer.nextToken();
+            } else if ("DATE".equalsIgnoreCase(ident)
+                    && lexer.token() == Token.LITERAL_CHARS
+                    && (JdbcConstants.ORACLE.equals(getDbType())
+                    || JdbcConstants.POSTGRESQL.equals(getDbType()))) {
+                String literal = lexer.stringVal();
+                lexer.nextToken();
+
+                SQLDateExpr dateExpr = new SQLDateExpr();
+                dateExpr.setLiteral(literal);
+
+                expr = dateExpr;
+            } else {
+                expr = new SQLIdentifierExpr(ident);
+            }
 
             if (lexer.token() != Token.COMMA) {
                 expr = this.primaryRest(expr);
@@ -2024,5 +2251,29 @@ public class SQLExprParser extends SQLParser {
             return identExpr.getName().equalsIgnoreCase(name);
         }
         return false;
+    }
+
+    public SQLLimit parseLimit() {
+        if (lexer.token() == Token.LIMIT) {
+            lexer.nextToken();
+
+            SQLLimit limit = new SQLLimit();
+
+            SQLExpr temp = this.expr();
+            if (lexer.token() == (Token.COMMA)) {
+                limit.setOffset(temp);
+                lexer.nextToken();
+                limit.setRowCount(this.expr());
+            } else if (identifierEquals("OFFSET")) {
+                limit.setRowCount(temp);
+                lexer.nextToken();
+                limit.setOffset(this.expr());
+            } else {
+                limit.setRowCount(temp);
+            }
+            return limit;
+        }
+
+        return null;
     }
 }

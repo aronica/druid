@@ -1,5 +1,5 @@
 /*
- * Copyright 1999-2101 Alibaba Group Holding Ltd.
+ * Copyright 1999-2017 Alibaba Group Holding Ltd.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -52,6 +52,7 @@ public class MySqlLexer extends Lexer {
         map.put("ROW", Token.ROW);
         map.put("BEGIN", Token.BEGIN);
         map.put("END", Token.END);
+        map.put("DIV", Token.DIV);
         
         // for oceanbase & mysql 5.7
         map.put("PARTITION", Token.PARTITION);
@@ -114,6 +115,7 @@ public class MySqlLexer extends Lexer {
 
         stringVal = subString(mark - 1, bufPos + 1);
         token = Token.LINE_COMMENT;
+        commentCount++;
         if (keepComments) {
             addComment(stringVal);
         }
@@ -254,6 +256,17 @@ public class MySqlLexer extends Lexer {
                 ch = charAt(++pos);
 
                 if (!isIdentifierChar(ch)) {
+                    if (ch == '-' && pos < text.length() - 1) {
+                        if (mark > 0 && text.charAt(mark - 1) == '.') {
+                            break;
+                        }
+
+                        char next_char = text.charAt(pos + 1);
+                        if (isIdentifierChar(next_char)) {
+                            bufPos++;
+                            continue;
+                        }
+                    }
                     if (last_ch == '-' && charAt(pos-2) != '-') {
                         ch = last_ch;
                         bufPos--;
@@ -342,6 +355,7 @@ public class MySqlLexer extends Lexer {
             } else {
                 stringVal = subString(mark, bufPos);
                 token = Token.MULTI_LINE_COMMENT;
+                commentCount++;
                 if (keepComments) {
                     addComment(stringVal);
                 }
@@ -388,6 +402,7 @@ public class MySqlLexer extends Lexer {
 
             stringVal = subString(mark, bufPos + 1);
             token = Token.LINE_COMMENT;
+            commentCount++;
             if (keepComments) {
                 addComment(stringVal);
             }
@@ -419,7 +434,7 @@ public class MySqlLexer extends Lexer {
         }
         // identifierFlags['`'] = true;
         identifierFlags['_'] = true;
-        identifierFlags['-'] = true; // mysql
+        //identifierFlags['-'] = true; // mysql
     }
 
     public static boolean isIdentifierChar(char c) {

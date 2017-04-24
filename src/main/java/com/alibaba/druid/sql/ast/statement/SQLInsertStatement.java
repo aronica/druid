@@ -1,5 +1,5 @@
 /*
- * Copyright 1999-2101 Alibaba Group Holding Ltd.
+ * Copyright 1999-2017 Alibaba Group Holding Ltd.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -26,6 +26,8 @@ import com.alibaba.druid.sql.visitor.SQLASTVisitor;
 public class SQLInsertStatement extends SQLInsertInto implements SQLStatement {
     private String dbType;
 
+    protected boolean upsert = false; // for phoenix
+
     public SQLInsertStatement(){
 
     }
@@ -40,6 +42,14 @@ public class SQLInsertStatement extends SQLInsertInto implements SQLStatement {
         }
 
         visitor.endVisit(this);
+    }
+
+    public boolean isUpsert() {
+        return upsert;
+    }
+
+    public void setUpsert(boolean upsert) {
+        this.upsert = upsert;
     }
 
     public static class ValuesClause extends SQLObjectImpl {

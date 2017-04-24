@@ -1,5 +1,5 @@
 /*
- * Copyright 1999-2101 Alibaba Group Holding Ltd.
+ * Copyright 1999-2017 Alibaba Group Holding Ltd.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,12 +18,17 @@ package com.alibaba.druid.pool.vendor;
 import com.alibaba.druid.pool.ExceptionSorter;
 
 import java.sql.SQLException;
+import java.sql.SQLRecoverableException;
 import java.util.Properties;
 
 public class MySqlExceptionSorter implements ExceptionSorter {
 
     @Override
     public boolean isExceptionFatal(SQLException e) {
+        if (e instanceof SQLRecoverableException) {
+            return true;
+        }
+
         final String sqlState = e.getSQLState();
         final int errorCode = e.getErrorCode();
 
@@ -51,6 +56,9 @@ public class MySqlExceptionSorter implements ExceptionSorter {
                 // Out-of-memory errors
             case 1037: // ER_OUTOFMEMORY
             case 1038: // ER_OUT_OF_SORTMEMORY
+                // Access denied
+            case 1142: // ER_TABLEACCESS_DENIED_ERROR
+            case 1227: // ER_SPECIFIC_ACCESS_DENIED_ERROR
                 return true;
             default:
                 break;
@@ -62,7 +70,8 @@ public class MySqlExceptionSorter implements ExceptionSorter {
         }
         
         String className = e.getClass().getName();
-        if ("com.mysql.jdbc.CommunicationsException".equals(className)) {
+        if ("com.mysql.jdbc.CommunicationsException".equals(className)
+                || "com.mysql.jdbc.exceptions.jdbc4.CommunicationsException".equals(className)) {
             return true;
         }
 

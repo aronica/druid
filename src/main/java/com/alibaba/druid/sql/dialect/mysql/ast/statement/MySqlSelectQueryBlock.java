@@ -1,5 +1,5 @@
 /*
- * Copyright 1999-2101 Alibaba Group Holding Ltd.
+ * Copyright 1999-2017 Alibaba Group Holding Ltd.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,10 +18,7 @@ package com.alibaba.druid.sql.dialect.mysql.ast.statement;
 import java.util.ArrayList;
 import java.util.List;
 
-import com.alibaba.druid.sql.ast.SQLCommentHint;
-import com.alibaba.druid.sql.ast.SQLExpr;
-import com.alibaba.druid.sql.ast.SQLName;
-import com.alibaba.druid.sql.ast.SQLObjectImpl;
+import com.alibaba.druid.sql.ast.*;
 import com.alibaba.druid.sql.ast.statement.SQLSelectQueryBlock;
 import com.alibaba.druid.sql.dialect.mysql.ast.MySqlObject;
 import com.alibaba.druid.sql.dialect.mysql.visitor.MySqlASTVisitor;
@@ -37,8 +34,6 @@ public class MySqlSelectQueryBlock extends SQLSelectQueryBlock implements MySqlO
     private boolean              bufferResult;
     private Boolean              cache;
     private boolean              calcFoundRows;
-
-    private Limit                limit;
 
     private SQLName              procedureName;
     private List<SQLExpr>        procedureArgumentList;
@@ -153,17 +148,6 @@ public class MySqlSelectQueryBlock extends SQLSelectQueryBlock implements MySqlO
         this.calcFoundRows = calcFoundRows;
     }
 
-    public Limit getLimit() {
-        return limit;
-    }
-
-    public void setLimit(Limit limit) {
-        if (limit != null) {
-            limit.setParent(this);
-        }
-        this.limit = limit;
-    }
-
     @Override
     public int hashCode() {
         final int prime = 31;
@@ -245,56 +229,6 @@ public class MySqlSelectQueryBlock extends SQLSelectQueryBlock implements MySqlO
         }
 
         visitor.endVisit(this);
-    }
-
-    public static class Limit extends SQLObjectImpl {
-
-        public Limit(){
-
-        }
-        
-        public Limit(SQLExpr rowCount){
-            this.setRowCount(rowCount);
-        }
-
-        private SQLExpr rowCount;
-        private SQLExpr offset;
-
-        public SQLExpr getRowCount() {
-            return rowCount;
-        }
-
-        public void setRowCount(SQLExpr rowCount) {
-            if (rowCount != null) {
-                rowCount.setParent(this);
-            }
-            this.rowCount = rowCount;
-        }
-
-        public SQLExpr getOffset() {
-            return offset;
-        }
-
-        public void setOffset(SQLExpr offset) {
-            if (offset != null) {
-                offset.setParent(this);
-            }
-            this.offset = offset;
-        }
-
-        @Override
-        protected void accept0(SQLASTVisitor visitor) {
-            if (visitor instanceof MySqlASTVisitor) {
-                MySqlASTVisitor mysqlVisitor = (MySqlASTVisitor) visitor;
-
-                if (mysqlVisitor.visit(this)) {
-                    acceptChild(visitor, offset);
-                    acceptChild(visitor, rowCount);
-                }
-                mysqlVisitor.endVisit(this);
-            }
-        }
-
     }
 
 }

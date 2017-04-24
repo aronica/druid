@@ -1,5 +1,5 @@
 /*
- * Copyright 1999-2101 Alibaba Group Holding Ltd.
+ * Copyright 1999-2017 Alibaba Group Holding Ltd.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,18 +18,14 @@ package com.alibaba.druid.sql.dialect.oracle.parser;
 import java.util.List;
 
 import com.alibaba.druid.sql.ast.SQLExpr;
+import com.alibaba.druid.sql.ast.SQLOrderBy;
 import com.alibaba.druid.sql.ast.SQLSetQuantifier;
 import com.alibaba.druid.sql.ast.expr.SQLAggregateExpr;
 import com.alibaba.druid.sql.ast.expr.SQLBinaryOpExpr;
 import com.alibaba.druid.sql.ast.expr.SQLBinaryOperator;
 import com.alibaba.druid.sql.ast.expr.SQLIdentifierExpr;
 import com.alibaba.druid.sql.ast.expr.SQLListExpr;
-import com.alibaba.druid.sql.ast.statement.SQLSelect;
-import com.alibaba.druid.sql.ast.statement.SQLSelectQuery;
-import com.alibaba.druid.sql.ast.statement.SQLTableSource;
-import com.alibaba.druid.sql.ast.statement.SQLUnionOperator;
-import com.alibaba.druid.sql.ast.statement.SQLUnionQuery;
-import com.alibaba.druid.sql.ast.statement.SQLWithSubqueryClause;
+import com.alibaba.druid.sql.ast.statement.*;
 import com.alibaba.druid.sql.dialect.oracle.ast.clause.CycleClause;
 import com.alibaba.druid.sql.dialect.oracle.ast.clause.FlashbackQueryClause;
 import com.alibaba.druid.sql.dialect.oracle.ast.clause.FlashbackQueryClause.AsOfFlashbackQueryClause;
@@ -53,7 +49,6 @@ import com.alibaba.druid.sql.dialect.oracle.ast.clause.SampleClause;
 import com.alibaba.druid.sql.dialect.oracle.ast.clause.SearchClause;
 import com.alibaba.druid.sql.dialect.oracle.ast.stmt.OracleSelect;
 import com.alibaba.druid.sql.dialect.oracle.ast.stmt.OracleSelectForUpdate;
-import com.alibaba.druid.sql.dialect.oracle.ast.stmt.OracleSelectHierachicalQueryClause;
 import com.alibaba.druid.sql.dialect.oracle.ast.stmt.OracleSelectJoin;
 import com.alibaba.druid.sql.dialect.oracle.ast.stmt.OracleSelectPivot;
 import com.alibaba.druid.sql.dialect.oracle.ast.stmt.OracleSelectQueryBlock;
@@ -82,8 +77,15 @@ public class OracleSelectParser extends SQLSelectParser {
 
         withSubquery(select);
 
-        select.setQuery(query());
-        select.setOrderBy(this.parseOrderBy());
+        SQLSelectQuery query = query();
+        select.setQuery(query);
+
+        SQLOrderBy orderBy = this.parseOrderBy();
+        select.setOrderBy(orderBy);
+        if (orderBy != null && query instanceof SQLSelectQueryBlock) {
+            SQLSelectQueryBlock queryBlock = (SQLSelectQueryBlock) query;
+            parseFetchClause(queryBlock);
+        }
 
         if (lexer.token() == (Token.FOR)) {
             lexer.nextToken();
@@ -275,6 +277,8 @@ public class OracleSelectParser extends SQLSelectParser {
         parseGroupBy(queryBlock);
 
         parseModelClause(queryBlock);
+
+        parseFetchClause(queryBlock);
 
         return queryRest(queryBlock);
     }
@@ -559,76 +563,7 @@ public class OracleSelectParser extends SQLSelectParser {
     }
 
     protected String as() {
-        if (lexer.token() == Token.CONNECT) {
-            return null;
-        }
-
         return super.as();
-    }
-
-    private void parseHierachical(OracleSelectQueryBlock queryBlock) {
-        OracleSelectHierachicalQueryClause hierachical = null;
-
-        if (lexer.token() == Token.CONNECT) {
-            hierachical = new OracleSelectHierachicalQueryClause();
-            lexer.nextToken();
-            accept(Token.BY);
-
-            if (lexer.token() == Token.PRIOR) {
-                lexer.nextToken();
-                hierachical.setPrior(true);
-            }
-
-            if (identifierEquals("NOCYCLE")) {
-                hierachical.setNoCycle(true);
-                lexer.nextToken();
-
-                if (lexer.token() == Token.PRIOR) {
-                    lexer.nextToken();
-                    hierachical.setPrior(true);
-                }
-            }
-            hierachical.setConnectBy(this.exprParser.expr());
-        }
-
-        if (lexer.token() == Token.START) {
-            lexer.nextToken();
-            if (hierachical == null) {
-                hierachical = new OracleSelectHierachicalQueryClause();
-            }
-            accept(Token.WITH);
-
-            hierachical.setStartWith(this.exprParser.expr());
-        }
-
-        if (lexer.token() == Token.CONNECT) {
-            if (hierachical == null) {
-                hierachical = new OracleSelectHierachicalQueryClause();
-            }
-
-            lexer.nextToken();
-            accept(Token.BY);
-
-            if (lexer.token() == Token.PRIOR) {
-                lexer.nextToken();
-                hierachical.setPrior(true);
-            }
-
-            if (identifierEquals("NOCYCLE")) {
-                hierachical.setNoCycle(true);
-                lexer.nextToken();
-
-                if (lexer.token() == Token.PRIOR) {
-                    lexer.nextToken();
-                    hierachical.setPrior(true);
-                }
-            }
-            hierachical.setConnectBy(this.exprParser.expr());
-        }
-
-        if (hierachical != null) {
-            queryBlock.setHierachicalQueryClause(hierachical);
-        }
     }
 
     @Override
@@ -815,10 +750,10 @@ public class OracleSelectParser extends SQLSelectParser {
                 tableSource.setFlashback(flashback());
             }
 
-            tableSource.setAlias(as());
+            tableSource.setAlias(tableAlias());
         } else if ((tableSource.getAlias() == null) || (tableSource.getAlias().length() == 0)) {
             if (lexer.token() != Token.LEFT && lexer.token() != Token.RIGHT && lexer.token() != Token.FULL) {
-                tableSource.setAlias(as());
+                tableSource.setAlias(tableAlias());
             }
         }
 

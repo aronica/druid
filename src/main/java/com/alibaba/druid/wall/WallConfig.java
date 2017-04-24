@@ -1,5 +1,5 @@
 /*
- * Copyright 1999-2101 Alibaba Group Holding Ltd.
+ * Copyright 1999-2017 Alibaba Group Holding Ltd.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -45,6 +45,7 @@ public class WallConfig implements WallConfigMBean {
     private boolean             hintAllow                   = true;
     private boolean             lockTableAllow              = true;
     private boolean             startTransactionAllow       = true;
+    private boolean             blockAllow                  = true;
 
     private boolean             conditionAndAlwayTrueAllow  = false;
     private boolean             conditionAndAlwayFalseAllow = false;
@@ -789,35 +790,49 @@ public class WallConfig implements WallConfigMBean {
         this.insertValuesCheckSize = insertValuesCheckSize;
     }
 
+    public boolean isBlockAllow() {
+        return blockAllow;
+    }
+
+    public void setBlockAllow(boolean blockAllow) {
+        this.blockAllow = blockAllow;
+    }
+
     public void configFromProperties(Properties properties) {
         {
-            String tenantColumn = properties.getProperty("druid.wall.tenantColumn");
-            if (tenantColumn != null) {
-                this.setTenantColumn(tenantColumn);
+            String propertyValue = properties.getProperty("druid.wall.tenantColumn");
+            if (propertyValue != null) {
+                this.setTenantColumn(propertyValue);
             }
         }
         {
-            Boolean selelctAllow = getBoolean(properties, "druid.wall.selelctAllow");
-            if (selelctAllow != null) {
-                this.setSelelctAllow(selelctAllow);
+            Boolean propertyValue = getBoolean(properties, "druid.wall.selelctAllow");
+            if (propertyValue != null) {
+                this.setSelelctAllow(propertyValue);
             }
         }
         {
-            Boolean updateAllow = getBoolean(properties, "druid.wall.updateAllow");
-            if (updateAllow != null) {
-                this.setUpdateAllow(updateAllow);
+            Boolean propertyValue = getBoolean(properties, "druid.wall.updateAllow");
+            if (propertyValue != null) {
+                this.setUpdateAllow(propertyValue);
             }
         }
         {
-            Boolean deleteAllow = getBoolean(properties, "druid.wall.deleteAllow");
-            if (deleteAllow != null) {
-                this.setDeleteAllow(deleteAllow);
+            Boolean propertyValue = getBoolean(properties, "druid.wall.deleteAllow");
+            if (propertyValue != null) {
+                this.setDeleteAllow(propertyValue);
             }
         }
         {
-            Boolean insertAllow = getBoolean(properties, "druid.wall.insertAllow");
-            if (insertAllow != null) {
-                this.setInsertAllow(insertAllow);
+            Boolean propertyValue = getBoolean(properties, "druid.wall.insertAllow");
+            if (propertyValue != null) {
+                this.setInsertAllow(propertyValue);
+            }
+        }
+        {
+            Boolean propertyValue = getBoolean(properties, "druid.wall.multiStatementAllow");
+            if (propertyValue != null) {
+                this.setMultiStatementAllow(propertyValue);
             }
         }
     }

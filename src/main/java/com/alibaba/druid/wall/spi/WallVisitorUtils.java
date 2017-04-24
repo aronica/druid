@@ -1,5 +1,5 @@
 /*
- * Copyright 1999-2101 Alibaba Group Holding Ltd.
+ * Copyright 1999-2017 Alibaba Group Holding Ltd.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,23 +15,10 @@
  */
 package com.alibaba.druid.wall.spi;
 
-import static com.alibaba.druid.sql.visitor.SQLEvalVisitor.EVAL_VALUE;
-
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.net.URL;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Enumeration;
-import java.util.List;
-import java.util.Set;
-import java.util.Stack;
-
 import com.alibaba.druid.sql.SQLUtils;
 import com.alibaba.druid.sql.ast.SQLCommentHint;
 import com.alibaba.druid.sql.ast.SQLExpr;
+import com.alibaba.druid.sql.ast.SQLLimit;
 import com.alibaba.druid.sql.ast.SQLName;
 import com.alibaba.druid.sql.ast.SQLObject;
 import com.alibaba.druid.sql.ast.SQLOrderBy;
@@ -61,60 +48,24 @@ import com.alibaba.druid.sql.ast.expr.SQLQueryExpr;
 import com.alibaba.druid.sql.ast.expr.SQLUnaryExpr;
 import com.alibaba.druid.sql.ast.expr.SQLValuableExpr;
 import com.alibaba.druid.sql.ast.expr.SQLVariantRefExpr;
-import com.alibaba.druid.sql.ast.statement.SQLAlterTableStatement;
-import com.alibaba.druid.sql.ast.statement.SQLCallStatement;
-import com.alibaba.druid.sql.ast.statement.SQLCreateIndexStatement;
-import com.alibaba.druid.sql.ast.statement.SQLCreateTableStatement;
-import com.alibaba.druid.sql.ast.statement.SQLCreateTriggerStatement;
-import com.alibaba.druid.sql.ast.statement.SQLCreateViewStatement;
-import com.alibaba.druid.sql.ast.statement.SQLDeleteStatement;
-import com.alibaba.druid.sql.ast.statement.SQLDropIndexStatement;
-import com.alibaba.druid.sql.ast.statement.SQLDropProcedureStatement;
-import com.alibaba.druid.sql.ast.statement.SQLDropSequenceStatement;
-import com.alibaba.druid.sql.ast.statement.SQLDropTableStatement;
-import com.alibaba.druid.sql.ast.statement.SQLDropTriggerStatement;
-import com.alibaba.druid.sql.ast.statement.SQLDropViewStatement;
-import com.alibaba.druid.sql.ast.statement.SQLExprTableSource;
-import com.alibaba.druid.sql.ast.statement.SQLInsertInto;
-import com.alibaba.druid.sql.ast.statement.SQLInsertStatement;
+import com.alibaba.druid.sql.ast.statement.*;
 import com.alibaba.druid.sql.ast.statement.SQLInsertStatement.ValuesClause;
-import com.alibaba.druid.sql.ast.statement.SQLJoinTableSource;
-import com.alibaba.druid.sql.ast.statement.SQLMergeStatement;
-import com.alibaba.druid.sql.ast.statement.SQLRollbackStatement;
-import com.alibaba.druid.sql.ast.statement.SQLSelect;
-import com.alibaba.druid.sql.ast.statement.SQLSelectGroupByClause;
-import com.alibaba.druid.sql.ast.statement.SQLSelectItem;
-import com.alibaba.druid.sql.ast.statement.SQLSelectQuery;
-import com.alibaba.druid.sql.ast.statement.SQLSelectQueryBlock;
-import com.alibaba.druid.sql.ast.statement.SQLSelectStatement;
-import com.alibaba.druid.sql.ast.statement.SQLSetStatement;
-import com.alibaba.druid.sql.ast.statement.SQLSubqueryTableSource;
-import com.alibaba.druid.sql.ast.statement.SQLTableSource;
-import com.alibaba.druid.sql.ast.statement.SQLTruncateStatement;
-import com.alibaba.druid.sql.ast.statement.SQLUnionOperator;
-import com.alibaba.druid.sql.ast.statement.SQLUnionQuery;
-import com.alibaba.druid.sql.ast.statement.SQLUpdateSetItem;
-import com.alibaba.druid.sql.ast.statement.SQLUpdateStatement;
-import com.alibaba.druid.sql.ast.statement.SQLUseStatement;
-import com.alibaba.druid.sql.dialect.mysql.ast.expr.MySqlOutFileExpr;
 import com.alibaba.druid.sql.dialect.mysql.ast.expr.MySqlOrderingExpr;
+import com.alibaba.druid.sql.dialect.mysql.ast.expr.MySqlOutFileExpr;
 import com.alibaba.druid.sql.dialect.mysql.ast.statement.MySqlCommitStatement;
 import com.alibaba.druid.sql.dialect.mysql.ast.statement.MySqlDeleteStatement;
-import com.alibaba.druid.sql.dialect.mysql.ast.statement.MySqlDescribeStatement;
+import com.alibaba.druid.sql.dialect.mysql.ast.statement.MySqlExplainStatement;
 import com.alibaba.druid.sql.dialect.mysql.ast.statement.MySqlHintStatement;
 import com.alibaba.druid.sql.dialect.mysql.ast.statement.MySqlInsertStatement;
 import com.alibaba.druid.sql.dialect.mysql.ast.statement.MySqlLockTableStatement;
 import com.alibaba.druid.sql.dialect.mysql.ast.statement.MySqlRenameTableStatement;
 import com.alibaba.druid.sql.dialect.mysql.ast.statement.MySqlReplaceStatement;
-import com.alibaba.druid.sql.dialect.mysql.ast.statement.MySqlSelectQueryBlock.Limit;
 import com.alibaba.druid.sql.dialect.mysql.ast.statement.MySqlSetCharSetStatement;
 import com.alibaba.druid.sql.dialect.mysql.ast.statement.MySqlSetNamesStatement;
 import com.alibaba.druid.sql.dialect.mysql.ast.statement.MySqlShowGrantsStatement;
 import com.alibaba.druid.sql.dialect.mysql.ast.statement.MySqlShowStatement;
-import com.alibaba.druid.sql.dialect.mysql.ast.statement.MySqlStartTransactionStatement;
 import com.alibaba.druid.sql.dialect.mysql.ast.statement.MySqlUpdateStatement;
 import com.alibaba.druid.sql.dialect.mysql.parser.MySqlStatementParser;
-import com.alibaba.druid.sql.dialect.oracle.ast.stmt.OracleCreateSequenceStatement;
 import com.alibaba.druid.sql.dialect.oracle.ast.stmt.OracleMultiInsertStatement;
 import com.alibaba.druid.sql.dialect.postgresql.ast.stmt.PGShowStatement;
 import com.alibaba.druid.sql.dialect.sqlserver.ast.stmt.SQLServerCommitStatement;
@@ -140,6 +91,20 @@ import com.alibaba.druid.wall.WallSqlTableStat;
 import com.alibaba.druid.wall.WallVisitor;
 import com.alibaba.druid.wall.violation.ErrorCode;
 import com.alibaba.druid.wall.violation.IllegalSQLObjectViolation;
+
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.net.URL;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Enumeration;
+import java.util.List;
+import java.util.Set;
+import java.util.Stack;
+
+import static com.alibaba.druid.sql.visitor.SQLEvalVisitor.EVAL_VALUE;
 
 public class WallVisitorUtils {
 
@@ -1205,7 +1170,7 @@ public class WallVisitorUtils {
                 return true;
             } else if (parent instanceof SQLOrderBy) {
                 return true;
-            } else if (parent instanceof Limit) {
+            } else if (parent instanceof SQLLimit) {
                 return true;
             } else if (parent instanceof MySqlOrderingExpr) {
                 return true;
@@ -1684,6 +1649,10 @@ public class WallVisitorUtils {
                 return;
             }
 
+            if (isTopFromDenySchema(visitor, x)) {
+                return;
+            }
+
             boolean isShow = x.getParent() instanceof MySqlShowGrantsStatement;
             if (isShow) {
                 return;
@@ -1733,6 +1702,7 @@ public class WallVisitorUtils {
         if (!(x.getParent() instanceof SQLSelectItem)) {
             return false;
         }
+
         SQLSelectItem item = (SQLSelectItem) x.getParent();
 
         if (!(item.getParent() instanceof SQLSelectQueryBlock)) {
@@ -1757,6 +1727,51 @@ public class WallVisitorUtils {
         SQLSelectStatement stmt = (SQLSelectStatement) select.getParent();
 
         return stmt.getParent() == null;
+    }
+
+    private static boolean isTopFromDenySchema(WallVisitor visitor, SQLMethodInvokeExpr x) {
+        SQLObject parent = x.getParent();
+        for (;; ) {
+            if (parent instanceof SQLExpr || parent instanceof Item || parent instanceof SQLSelectItem) {
+                parent = parent.getParent();
+            } else {
+                break;
+            }
+        }
+
+        if (parent instanceof SQLSelectQueryBlock) {
+            SQLSelectQueryBlock queryBlock = (SQLSelectQueryBlock) parent;
+            if (!(queryBlock.getParent() instanceof SQLSelect)) {
+                return false;
+            }
+
+            SQLSelect select = (SQLSelect) queryBlock.getParent();
+
+            if (!(select.getParent() instanceof SQLSelectStatement)) {
+                return false;
+            }
+
+            SQLSelectStatement stmt = (SQLSelectStatement) select.getParent();
+
+            if (stmt.getParent() != null) {
+                return false;
+            }
+
+            SQLTableSource from = queryBlock.getFrom();
+            if (from instanceof SQLExprTableSource) {
+                SQLExpr fromExpr = ((SQLExprTableSource) from).getExpr();
+                if (fromExpr instanceof SQLName) {
+                    String fromTableName = fromExpr.toString();
+                    return visitor.isDenyTable(fromTableName);
+                }
+            }
+
+            return false;
+        }
+
+
+
+        return false;
     }
 
     private static boolean checkSchema(WallVisitor visitor, SQLExpr x) {
@@ -2421,7 +2436,7 @@ public class WallVisitorUtils {
                    || x instanceof SQLCreateIndexStatement //
                    || x instanceof SQLCreateViewStatement //
                    || x instanceof SQLCreateTriggerStatement //
-                   || x instanceof OracleCreateSequenceStatement //
+                   || x instanceof SQLCreateSequenceStatement //
         ) {
             allow = config.isCreateTableAllow();
             denyMessage = "create table not allow";
@@ -2451,11 +2466,14 @@ public class WallVisitorUtils {
             allow = config.isReplaceAllow();
             denyMessage = "replace not allow";
             errorCode = ErrorCode.REPLACE_NOT_ALLOW;
-        } else if (x instanceof MySqlDescribeStatement) {
+        } else if (x instanceof SQLDescribeStatement
+            || (x instanceof MySqlExplainStatement && ((MySqlExplainStatement)x).isDescribe())) {
             allow = config.isDescribeAllow();
             denyMessage = "describe not allow";
             errorCode = ErrorCode.DESC_NOT_ALLOW;
-        } else if (x instanceof MySqlShowStatement || x instanceof PGShowStatement) {
+        } else if (x instanceof MySqlShowStatement
+                || x instanceof PGShowStatement
+                || x instanceof SQLShowTablesStatement) {
             allow = config.isShowAllow();
             denyMessage = "show not allow";
             errorCode = ErrorCode.SHOW_NOT_ALLOW;
@@ -2483,10 +2501,14 @@ public class WallVisitorUtils {
             allow = config.isLockTableAllow();
             denyMessage = "lock table not allow";
             errorCode = ErrorCode.LOCK_TABLE_NOT_ALLOW;
-        } else if (x instanceof MySqlStartTransactionStatement) {
+        } else if (x instanceof SQLStartTransactionStatement) {
             allow = config.isStartTransactionAllow();
             denyMessage = "start transaction not allow";
             errorCode = ErrorCode.START_TRANSACTION_NOT_ALLOW;
+        } else if (x instanceof SQLBlockStatement) {
+            allow = config.isBlockAllow();
+            denyMessage = "block statement not allow";
+            errorCode = ErrorCode.BLOCK_NOT_ALLOW;
         } else {
             allow = config.isNoneBaseStatementAllow();
             errorCode = ErrorCode.NONE_BASE_STATEMENT_NOT_ALLOW;

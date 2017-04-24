@@ -1,5 +1,5 @@
 /*
- * Copyright 1999-2101 Alibaba Group Holding Ltd.
+ * Copyright 1999-2017 Alibaba Group Holding Ltd.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,6 +19,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import com.alibaba.druid.sql.ast.SQLExpr;
+import com.alibaba.druid.sql.ast.SQLLimit;
 import com.alibaba.druid.sql.ast.SQLObjectImpl;
 import com.alibaba.druid.sql.ast.SQLOrderBy;
 import com.alibaba.druid.sql.visitor.SQLASTVisitor;
@@ -37,6 +38,14 @@ public class SQLSelectQueryBlock extends SQLObjectImpl implements SQLSelectQuery
     protected boolean                   forUpdate     = false;
     protected boolean                   noWait        = false;
     protected SQLExpr                   waitTime;
+
+    protected SQLLimit                  limit;
+
+    // for oracle & oceanbase
+    protected SQLExpr startWith;
+    protected SQLExpr connectBy;
+    protected boolean prior   = false;
+    protected boolean noCycle = false;
 
     public SQLSelectQueryBlock(){
 
@@ -62,6 +71,9 @@ public class SQLSelectQueryBlock extends SQLObjectImpl implements SQLSelectQuery
     }
 
     public void setGroupBy(SQLSelectGroupByClause groupBy) {
+        if (groupBy != null) {
+            groupBy.setParent(this);
+        }
         this.groupBy = groupBy;
     }
 
@@ -110,6 +122,9 @@ public class SQLSelectQueryBlock extends SQLObjectImpl implements SQLSelectQuery
     }
 
     public void setFrom(SQLTableSource from) {
+        if (from != null) {
+            from.setParent(this);
+        }
         this.from = from;
     }
 
@@ -142,7 +157,89 @@ public class SQLSelectQueryBlock extends SQLObjectImpl implements SQLSelectQuery
     }
     
     public void setWaitTime(SQLExpr waitTime) {
+        if (waitTime != null) {
+            waitTime.setParent(this);
+        }
         this.waitTime = waitTime;
+    }
+
+    public SQLLimit getLimit() {
+        return limit;
+    }
+
+    public void setLimit(SQLLimit limit) {
+        if (limit != null) {
+            limit.setParent(this);
+        }
+        this.limit = limit;
+    }
+
+    public SQLExpr getFirst() {
+        if (limit == null) {
+            return null;
+        }
+
+        return limit.getRowCount();
+    }
+
+    public void setFirst(SQLExpr first) {
+        if (limit == null) {
+            limit = new SQLLimit();
+        }
+        this.limit.setRowCount(first);
+    }
+
+    public SQLExpr getOffset() {
+        if (limit == null) {
+            return null;
+        }
+
+        return limit.getOffset();
+    }
+
+    public void setOffset(SQLExpr offset) {
+        if (limit == null) {
+            limit = new SQLLimit();
+        }
+        this.limit.setOffset(offset);
+    }
+
+    public boolean isPrior() {
+        return prior;
+    }
+
+    public void setPrior(boolean prior) {
+        this.prior = prior;
+    }
+
+    public SQLExpr getStartWith() {
+        return this.startWith;
+    }
+
+    public void setStartWith(SQLExpr startWith) {
+        if (startWith != null) {
+            startWith.setParent(this);
+        }
+        this.startWith = startWith;
+    }
+
+    public SQLExpr getConnectBy() {
+        return this.connectBy;
+    }
+
+    public void setConnectBy(SQLExpr connectBy) {
+        if (connectBy != null) {
+            connectBy.setParent(this);
+        }
+        this.connectBy = connectBy;
+    }
+
+    public boolean isNoCycle() {
+        return this.noCycle;
+    }
+
+    public void setNoCycle(boolean noCycle) {
+        this.noCycle = noCycle;
     }
 
 	@Override
@@ -151,6 +248,8 @@ public class SQLSelectQueryBlock extends SQLObjectImpl implements SQLSelectQuery
             acceptChild(visitor, this.selectList);
             acceptChild(visitor, this.from);
             acceptChild(visitor, this.where);
+            acceptChild(visitor, this.startWith);
+            acceptChild(visitor, this.connectBy);
             acceptChild(visitor, this.groupBy);
         }
         visitor.endVisit(this);

@@ -1,5 +1,5 @@
 /*
- * Copyright 1999-2101 Alibaba Group Holding Ltd.
+ * Copyright 1999-2017 Alibaba Group Holding Ltd.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -115,6 +115,7 @@ public class OdpsLexer extends Lexer {
             } else {
                 stringVal = subString(mark, bufPos + 1);
                 token = Token.MULTI_LINE_COMMENT;
+                commentCount++;
                 if (keepComments) {
                     addComment(stringVal);
                 }
@@ -166,6 +167,7 @@ public class OdpsLexer extends Lexer {
 
             stringVal = subString(mark, ch != EOI ? bufPos : bufPos + 1);
             token = Token.LINE_COMMENT;
+            commentCount++;
             if (keepComments) {
                 addComment(stringVal);
             }
@@ -351,5 +353,9 @@ public class OdpsLexer extends Lexer {
     
     protected final void scanString() {
         scanString2();
+    }
+    
+    protected final void scanAlias() {
+        scanAlias2();
     }
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright 1999-2101 Alibaba Group Holding Ltd.
+ * Copyright 1999-2017 Alibaba Group Holding Ltd.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -55,6 +55,26 @@ public class DB2ExprParser extends SQLExprParser {
                     SQLName seqName = this.name();
                     SQLSequenceExpr seqExpr = new SQLSequenceExpr(seqName, SQLSequenceExpr.Function.PrevVal);
                     return seqExpr;
+                }
+            }
+        } else if (identifierEquals("DATE")) {
+            if (expr instanceof SQLIdentifierExpr) {
+                SQLIdentifierExpr identExpr = (SQLIdentifierExpr) expr;
+                String ident = identExpr.getName();
+                if (ident.equalsIgnoreCase("CURRENT")) {
+                    lexer.nextToken();
+
+                    expr = new SQLIdentifierExpr("CURRENT DATE");
+                }
+            }
+        } else if (identifierEquals("TIMESTAMP")) {
+            if (expr instanceof SQLIdentifierExpr) {
+                SQLIdentifierExpr identExpr = (SQLIdentifierExpr) expr;
+                String ident = identExpr.getName();
+                if (ident.equalsIgnoreCase("CURRENT")) {
+                    lexer.nextToken();
+
+                    expr = new SQLIdentifierExpr("CURRENT DATE");
                 }
             }
         }

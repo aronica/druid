@@ -1,5 +1,5 @@
 /*
- * Copyright 1999-2101 Alibaba Group Holding Ltd.
+ * Copyright 1999-2017 Alibaba Group Holding Ltd.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,18 +15,18 @@
  */
 package com.alibaba.druid.sql.dialect.mysql.visitor;
 
-import java.util.Map;
-
 import com.alibaba.druid.sql.ast.SQLDeclareItem;
+import com.alibaba.druid.sql.ast.SQLExpr;
 import com.alibaba.druid.sql.ast.SQLName;
 import com.alibaba.druid.sql.ast.SQLObject;
 import com.alibaba.druid.sql.ast.expr.SQLIdentifierExpr;
+import com.alibaba.druid.sql.ast.expr.SQLPropertyExpr;
 import com.alibaba.druid.sql.ast.statement.SQLAlterTableStatement;
 import com.alibaba.druid.sql.ast.statement.SQLCreateTableStatement;
 import com.alibaba.druid.sql.ast.statement.SQLExprTableSource;
-import com.alibaba.druid.sql.ast.statement.SQLSelectItem;
 import com.alibaba.druid.sql.ast.statement.SQLSelectQueryBlock;
 import com.alibaba.druid.sql.ast.statement.SQLSelectStatement;
+import com.alibaba.druid.sql.ast.statement.SQLStartTransactionStatement;
 import com.alibaba.druid.sql.ast.statement.SQLTableSource;
 import com.alibaba.druid.sql.ast.statement.SQLUnionQuery;
 import com.alibaba.druid.sql.ast.statement.SQLUpdateStatement;
@@ -72,8 +72,8 @@ import com.alibaba.druid.sql.dialect.mysql.ast.statement.MySqlCreateTableStateme
 import com.alibaba.druid.sql.dialect.mysql.ast.statement.MySqlCreateUserStatement;
 import com.alibaba.druid.sql.dialect.mysql.ast.statement.MySqlCreateUserStatement.UserSpecification;
 import com.alibaba.druid.sql.dialect.mysql.ast.statement.MySqlDeleteStatement;
-import com.alibaba.druid.sql.dialect.mysql.ast.statement.MySqlDescribeStatement;
 import com.alibaba.druid.sql.dialect.mysql.ast.statement.MySqlExecuteStatement;
+import com.alibaba.druid.sql.dialect.mysql.ast.statement.MySqlExplainStatement;
 import com.alibaba.druid.sql.dialect.mysql.ast.statement.MySqlHelpStatement;
 import com.alibaba.druid.sql.dialect.mysql.ast.statement.MySqlHintStatement;
 import com.alibaba.druid.sql.dialect.mysql.ast.statement.MySqlInsertStatement;
@@ -89,7 +89,6 @@ import com.alibaba.druid.sql.dialect.mysql.ast.statement.MySqlReplaceStatement;
 import com.alibaba.druid.sql.dialect.mysql.ast.statement.MySqlResetStatement;
 import com.alibaba.druid.sql.dialect.mysql.ast.statement.MySqlRollbackStatement;
 import com.alibaba.druid.sql.dialect.mysql.ast.statement.MySqlSelectQueryBlock;
-import com.alibaba.druid.sql.dialect.mysql.ast.statement.MySqlSelectQueryBlock.Limit;
 import com.alibaba.druid.sql.dialect.mysql.ast.statement.MySqlSetCharSetStatement;
 import com.alibaba.druid.sql.dialect.mysql.ast.statement.MySqlSetNamesStatement;
 import com.alibaba.druid.sql.dialect.mysql.ast.statement.MySqlSetPasswordStatement;
@@ -136,7 +135,6 @@ import com.alibaba.druid.sql.dialect.mysql.ast.statement.MySqlShowTableStatusSta
 import com.alibaba.druid.sql.dialect.mysql.ast.statement.MySqlShowTriggersStatement;
 import com.alibaba.druid.sql.dialect.mysql.ast.statement.MySqlShowVariantsStatement;
 import com.alibaba.druid.sql.dialect.mysql.ast.statement.MySqlShowWarningsStatement;
-import com.alibaba.druid.sql.dialect.mysql.ast.statement.MySqlStartTransactionStatement;
 import com.alibaba.druid.sql.dialect.mysql.ast.statement.MySqlSubPartitionByKey;
 import com.alibaba.druid.sql.dialect.mysql.ast.statement.MySqlSubPartitionByList;
 import com.alibaba.druid.sql.dialect.mysql.ast.statement.MySqlTableIndex;
@@ -144,10 +142,13 @@ import com.alibaba.druid.sql.dialect.mysql.ast.statement.MySqlUnionQuery;
 import com.alibaba.druid.sql.dialect.mysql.ast.statement.MySqlUnlockTablesStatement;
 import com.alibaba.druid.sql.dialect.mysql.ast.statement.MySqlUpdateStatement;
 import com.alibaba.druid.sql.dialect.mysql.ast.statement.MySqlUpdateTableSource;
+import com.alibaba.druid.sql.dialect.mysql.ast.statement.MysqlDeallocatePrepareStatement;
 import com.alibaba.druid.sql.visitor.SchemaStatVisitor;
 import com.alibaba.druid.stat.TableStat;
 import com.alibaba.druid.stat.TableStat.Mode;
 import com.alibaba.druid.util.JdbcUtils;
+
+import java.util.Map;
 
 public class MySqlSchemaStatVisitor extends SchemaStatVisitor implements MySqlASTVisitor {
 
@@ -205,8 +206,19 @@ public class MySqlSchemaStatVisitor extends SchemaStatVisitor implements MySqlAS
 
         setAliasMap();
 
-        if (x.getTableName() instanceof SQLIdentifierExpr) {
-            String ident = ((SQLIdentifierExpr) x.getTableName()).getName();
+        SQLName tableName = x.getTableName();
+
+        String ident = null;
+        if (tableName instanceof SQLIdentifierExpr) {
+            ident = ((SQLIdentifierExpr) tableName).getName();
+        } else if (tableName instanceof SQLPropertyExpr) {
+            SQLPropertyExpr propertyExpr = (SQLPropertyExpr) tableName;
+            if (propertyExpr.getOwner() instanceof SQLIdentifierExpr) {
+                ident = propertyExpr.toString();
+            }
+        }
+
+        if (ident != null) {
             setCurrentTable(x, ident);
 
             TableStat stat = getTableStat(ident);
@@ -226,17 +238,6 @@ public class MySqlSchemaStatVisitor extends SchemaStatVisitor implements MySqlAS
     }
 
     @Override
-    public boolean visit(Limit x) {
-
-        return true;
-    }
-
-    @Override
-    public void endVisit(Limit x) {
-
-    }
-
-    @Override
     public boolean visit(MySqlTableIndex x) {
 
         return false;
@@ -249,6 +250,9 @@ public class MySqlSchemaStatVisitor extends SchemaStatVisitor implements MySqlAS
 
     @Override
     public boolean visit(MySqlKey x) {
+        for (SQLObject item : x.getColumns()) {
+            item.accept(this);
+        }
         return false;
     }
 
@@ -324,6 +328,16 @@ public class MySqlSchemaStatVisitor extends SchemaStatVisitor implements MySqlAS
 
         return true;
     }
+    
+    @Override
+    public void endVisit(MysqlDeallocatePrepareStatement x) {
+    	
+    }
+    
+    @Override
+    public boolean visit(MysqlDeallocatePrepareStatement x) {
+    	return true;
+    }
 
     @Override
     public void endVisit(MySqlLoadDataInFileStatement x) {
@@ -354,17 +368,46 @@ public class MySqlSchemaStatVisitor extends SchemaStatVisitor implements MySqlAS
 
     @Override
     public boolean visit(MySqlReplaceStatement x) {
+        setMode(x, Mode.Replace);
 
-        return true;
+        setAliasMap();
+
+        SQLName tableName = x.getTableName();
+
+        String ident = null;
+        if (tableName instanceof SQLIdentifierExpr) {
+            ident = ((SQLIdentifierExpr) tableName).getName();
+        } else if (tableName instanceof SQLPropertyExpr) {
+            SQLPropertyExpr propertyExpr = (SQLPropertyExpr) tableName;
+            if (propertyExpr.getOwner() instanceof SQLIdentifierExpr) {
+                ident = propertyExpr.toString();
+            }
+        }
+
+        if (ident != null) {
+            setCurrentTable(x, ident);
+
+            TableStat stat = getTableStat(ident);
+            stat.incrementInsertCount();
+
+            Map<String, String> aliasMap = getAliasMap();
+            putAliasMap(aliasMap, ident, ident);
+        }
+
+        accept(x.getColumns());
+        accept(x.getValuesList());
+        accept(x.getQuery());
+
+        return false;
     }
 
     @Override
-    public void endVisit(MySqlStartTransactionStatement x) {
+    public void endVisit(SQLStartTransactionStatement x) {
 
     }
 
     @Override
-    public boolean visit(MySqlStartTransactionStatement x) {
+    public boolean visit(SQLStartTransactionStatement x) {
 
         return true;
     }
@@ -523,17 +566,24 @@ public class MySqlSchemaStatVisitor extends SchemaStatVisitor implements MySqlAS
     }
 
     @Override
-    public boolean visit(MySqlDescribeStatement x) {
-        String table = x.getObject().toString();
-        getTableStat(table);
-        if (x.getColName() != null) {
-            addColumn(table, x.getColName().toString());
+    public boolean visit(MySqlExplainStatement x) {
+        if (x.getTableName() != null) {
+            String table = x.getTableName().toString();
+            getTableStat(table);
+            if (x.getColumnName() != null) {
+                addColumn(table, x.getColumnName().toString());
+            }
         }
+
+        if (x.getStatement() != null) {
+            accept(x.getStatement());
+        }
+
         return false;
     }
 
     @Override
-    public void endVisit(MySqlDescribeStatement x) {
+    public void endVisit(MySqlExplainStatement x) {
 
     }
 
@@ -541,7 +591,7 @@ public class MySqlSchemaStatVisitor extends SchemaStatVisitor implements MySqlAS
     public boolean visit(MySqlUpdateStatement x) {
         
         visit((SQLUpdateStatement) x);
-        for (SQLSelectItem item : x.getReturning()) {
+        for (SQLExpr item : x.getReturning()) {
             item.accept(this);
         }
         

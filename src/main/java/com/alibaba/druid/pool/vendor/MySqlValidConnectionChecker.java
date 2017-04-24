@@ -1,5 +1,5 @@
 /*
- * Copyright 1999-2101 Alibaba Group Holding Ltd.
+ * Copyright 1999-2017 Alibaba Group Holding Ltd.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -33,7 +33,8 @@ import com.alibaba.druid.util.Utils;
 
 public class MySqlValidConnectionChecker extends ValidConnectionCheckerAdapter implements ValidConnectionChecker, Serializable {
 
-    public static final int DEFAULT_VALIDATION_QUERY_TIMEOUT = 1000;
+    public static final int DEFAULT_VALIDATION_QUERY_TIMEOUT = 1;
+    public static final String DEFAULT_VALIDATION_QUERY = "SELECT 1";
 
     private static final long serialVersionUID = 1L;
     private static final Log  LOG              = LogFactory.getLog(MySqlValidConnectionChecker.class);
@@ -81,7 +82,7 @@ public class MySqlValidConnectionChecker extends ValidConnectionCheckerAdapter i
         this.usePingMethod = usePingMethod;
     }
 
-    public boolean validConnection(Connection conn, String validateQuery, int validationQueryTimeout) throws Exception {
+    public boolean isValidConnection(Connection conn, String validateQuery, int validationQueryTimeout) throws Exception {
         if (conn.isClosed()) {
             return false;
         }
@@ -105,6 +106,11 @@ public class MySqlValidConnectionChecker extends ValidConnectionCheckerAdapter i
             }
         }
 
+        String query = validateQuery;
+        if (validateQuery == null || validateQuery.isEmpty()) {
+            query = DEFAULT_VALIDATION_QUERY;
+        }
+
         Statement stmt = null;
         ResultSet rs = null;
         try {
@@ -112,7 +118,7 @@ public class MySqlValidConnectionChecker extends ValidConnectionCheckerAdapter i
             if (validationQueryTimeout > 0) {
                 stmt.setQueryTimeout(validationQueryTimeout);
             }
-            rs = stmt.executeQuery(validateQuery);
+            rs = stmt.executeQuery(query);
             return true;
         } finally {
             JdbcUtils.close(rs);

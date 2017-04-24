@@ -1,5 +1,5 @@
 /*
- * Copyright 1999-2101 Alibaba Group Holding Ltd.
+ * Copyright 1999-2017 Alibaba Group Holding Ltd.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,10 +17,7 @@ package com.alibaba.druid.sql.parser;
 
 import java.util.List;
 
-import com.alibaba.druid.sql.ast.SQLExpr;
-import com.alibaba.druid.sql.ast.SQLOrderBy;
-import com.alibaba.druid.sql.ast.SQLOrderingSpecification;
-import com.alibaba.druid.sql.ast.SQLSetQuantifier;
+import com.alibaba.druid.sql.ast.*;
 import com.alibaba.druid.sql.ast.expr.SQLIdentifierExpr;
 import com.alibaba.druid.sql.ast.statement.SQLExprTableSource;
 import com.alibaba.druid.sql.ast.statement.SQLJoinTableSource;
@@ -173,6 +170,20 @@ public class SQLSelectParser extends SQLParser {
             lexer.nextToken();
         }
 
+        if (JdbcConstants.INFORMIX.equals(dbType)) {
+            if (identifierEquals("SKIP")) {
+                lexer.nextToken();
+                SQLExpr offset = this.exprParser.primary();
+                queryBlock.setOffset(offset);
+            }
+
+            if (identifierEquals("FIRST")) {
+                lexer.nextToken();
+                SQLExpr first = this.exprParser.primary();
+                queryBlock.setFirst(first);
+            }
+        }
+
         if (lexer.token() == Token.DISTINCT) {
             queryBlock.setDistionOption(SQLSetQuantifier.DISTINCT);
             lexer.nextToken();
@@ -191,6 +202,8 @@ public class SQLSelectParser extends SQLParser {
         parseWhere(queryBlock);
 
         parseGroupBy(queryBlock);
+
+        parseFetchClause(queryBlock);
 
         return queryRest(queryBlock);
     }
@@ -330,7 +343,8 @@ public class SQLSelectParser extends SQLParser {
                 groupBy.setWithRollUp(true);
             }
             
-            if(JdbcConstants.MYSQL.equals(getDbType()) && lexer.token() == Token.DESC) {
+            if(JdbcConstants.MYSQL.equals(getDbType())
+                    && lexer.token() == Token.DESC) {
                 lexer.nextToken(); // skip
             }
 
@@ -434,7 +448,7 @@ public class SQLSelectParser extends SQLParser {
         if ((tableSource.getAlias() == null) || (tableSource.getAlias().length() == 0)) {
             if (lexer.token() != Token.LEFT && lexer.token() != Token.RIGHT && lexer.token() != Token.FULL
                 && !identifierEquals("STRAIGHT_JOIN") && !identifierEquals("CROSS") && lexer.token != Token.OUTER) {
-                String alias = as();
+                String alias = tableAlias();
                 if (alias != null) {
                     tableSource.setAlias(alias);
                     return parseTableSourceRest(tableSource);
@@ -539,4 +553,91 @@ public class SQLSelectParser extends SQLParser {
         }
     }
 
+    public void parseFetchClause(SQLSelectQueryBlock queryBlock) {
+        if (lexer.token() == Token.LIMIT) {
+            SQLLimit limit = this.exprParser.parseLimit();
+            queryBlock.setLimit(limit);
+            return;
+        }
+
+        if (identifierEquals("OFFSET") || lexer.token() == Token.OFFSET) {
+            lexer.nextToken();
+            SQLExpr offset = this.exprParser.primary();
+            queryBlock.setOffset(offset);
+            if (identifierEquals("ROW") || identifierEquals("ROWS")) {
+                lexer.nextToken();
+            }
+        }
+
+        if (lexer.token() == Token.FETCH) {
+            lexer.nextToken();
+            if (lexer.token() == Token.FIRST) {
+                lexer.nextToken();
+            } else {
+                acceptIdentifier("FIRST");
+            }
+            SQLExpr first = this.exprParser.primary();
+            queryBlock.setFirst(first);
+            if (identifierEquals("ROW") || identifierEquals("ROWS")) {
+                lexer.nextToken();
+            }
+
+            if (lexer.token() == Token.ONLY) {
+                lexer.nextToken();
+            } else {
+                acceptIdentifier("ONLY");
+            }
+        }
+    }
+
+    protected void parseHierachical(SQLSelectQueryBlock queryBlock) {
+        if (lexer.token() == Token.CONNECT || identifierEquals("CONNECT")) {
+            lexer.nextToken();
+            accept(Token.BY);
+
+            if (lexer.token() == Token.PRIOR || identifierEquals("PRIOR")) {
+                lexer.nextToken();
+                queryBlock.setPrior(true);
+            }
+
+            if (identifierEquals("NOCYCLE")) {
+                queryBlock.setNoCycle(true);
+                lexer.nextToken();
+
+                if (lexer.token() == Token.PRIOR) {
+                    lexer.nextToken();
+                    queryBlock.setPrior(true);
+                }
+            }
+            queryBlock.setConnectBy(this.exprParser.expr());
+        }
+
+        if (lexer.token() == Token.START || identifierEquals("START")) {
+            lexer.nextToken();
+            accept(Token.WITH);
+
+            queryBlock.setStartWith(this.exprParser.expr());
+        }
+
+        if (lexer.token() == Token.CONNECT || identifierEquals("CONNECT")) {
+            lexer.nextToken();
+            accept(Token.BY);
+
+            if (lexer.token() == Token.PRIOR || identifierEquals("PRIOR")) {
+                lexer.nextToken();
+                queryBlock.setPrior(true);
+            }
+
+            if (identifierEquals("NOCYCLE")) {
+                queryBlock.setNoCycle(true);
+                lexer.nextToken();
+
+                if (lexer.token() == Token.PRIOR || identifierEquals("PRIOR")) {
+                    lexer.nextToken();
+                    queryBlock.setPrior(true);
+                }
+            }
+            queryBlock.setConnectBy(this.exprParser.expr());
+        }
+    }
 }

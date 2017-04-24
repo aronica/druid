@@ -1,5 +1,5 @@
 /*
- * Copyright 1999-2101 Alibaba Group Holding Ltd.
+ * Copyright 1999-2017 Alibaba Group Holding Ltd.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -39,6 +39,7 @@ public interface JdbcConstants {
 
     public static final String ORACLE            = "oracle";
     public static final String ORACLE_DRIVER     = "oracle.jdbc.OracleDriver";
+    public static final String ORACLE_DRIVER2    = "oracle.jdbc.driver.OracleDriver";
 
     public static final String ALI_ORACLE        = "AliOracle";
     public static final String ALI_ORACLE_DRIVER = "com.alibaba.jdbc.AlibabaDriver";
@@ -68,6 +69,8 @@ public interface JdbcConstants {
 
     public static final String OCEANBASE         = "oceanbase";
     public static final String OCEANBASE_DRIVER  = "com.mysql.jdbc.Driver";
+
+    public static final String INFORMIX          = "informix";
     
     /**
      * 阿里云odps
@@ -83,4 +86,13 @@ public interface JdbcConstants {
      */
     public static final String LOG4JDBC          = "log4jdbc";
     public static final String LOG4JDBC_DRIVER   = "net.sf.log4jdbc.DriverSpy";
+
+    public static final String PHOENIX           = "phoenix";
+    public static final String PHOENIX_DRIVER    = "org.apache.phoenix.jdbc.PhoenixDriver";
+
+    public static final String ENTERPRISEDB        = "edb";
+    public static final String ENTERPRISEDB_DRIVER = "com.edb.Driver";
+
+    public static final String SQLITE              = "sqlite";
+    public static final String SQLITE_DRIVER       = "org.sqlite.JDBC";
 }

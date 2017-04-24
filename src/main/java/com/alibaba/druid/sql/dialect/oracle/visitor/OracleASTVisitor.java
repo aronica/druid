@@ -1,5 +1,5 @@
 /*
- * Copyright 1999-2101 Alibaba Group Holding Ltd.
+ * Copyright 1999-2017 Alibaba Group Holding Ltd.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -36,10 +36,9 @@ import com.alibaba.druid.sql.dialect.oracle.ast.expr.OracleArgumentExpr;
 import com.alibaba.druid.sql.dialect.oracle.ast.expr.OracleBinaryDoubleExpr;
 import com.alibaba.druid.sql.dialect.oracle.ast.expr.OracleBinaryFloatExpr;
 import com.alibaba.druid.sql.dialect.oracle.ast.expr.OracleCursorExpr;
-import com.alibaba.druid.sql.dialect.oracle.ast.expr.OracleDateExpr;
+import com.alibaba.druid.sql.ast.expr.SQLDateExpr;
 import com.alibaba.druid.sql.dialect.oracle.ast.expr.OracleDatetimeExpr;
 import com.alibaba.druid.sql.dialect.oracle.ast.expr.OracleDbLinkExpr;
-import com.alibaba.druid.sql.dialect.oracle.ast.expr.OracleExtractExpr;
 import com.alibaba.druid.sql.dialect.oracle.ast.expr.OracleIntervalExpr;
 import com.alibaba.druid.sql.dialect.oracle.ast.expr.OracleIsSetExpr;
 import com.alibaba.druid.sql.dialect.oracle.ast.expr.OracleOuterExpr;
@@ -63,7 +62,6 @@ import com.alibaba.druid.sql.dialect.oracle.ast.stmt.OracleCheck;
 import com.alibaba.druid.sql.dialect.oracle.ast.stmt.OracleCommitStatement;
 import com.alibaba.druid.sql.dialect.oracle.ast.stmt.OracleCreateDatabaseDbLinkStatement;
 import com.alibaba.druid.sql.dialect.oracle.ast.stmt.OracleCreateIndexStatement;
-import com.alibaba.druid.sql.dialect.oracle.ast.stmt.OracleCreateSequenceStatement;
 import com.alibaba.druid.sql.dialect.oracle.ast.stmt.OracleCreateTableStatement;
 import com.alibaba.druid.sql.dialect.oracle.ast.stmt.OracleDeleteStatement;
 import com.alibaba.druid.sql.dialect.oracle.ast.stmt.OracleDropDbLinkStatement;
@@ -87,7 +85,6 @@ import com.alibaba.druid.sql.dialect.oracle.ast.stmt.OraclePrimaryKey;
 import com.alibaba.druid.sql.dialect.oracle.ast.stmt.OracleSavePointStatement;
 import com.alibaba.druid.sql.dialect.oracle.ast.stmt.OracleSelect;
 import com.alibaba.druid.sql.dialect.oracle.ast.stmt.OracleSelectForUpdate;
-import com.alibaba.druid.sql.dialect.oracle.ast.stmt.OracleSelectHierachicalQueryClause;
 import com.alibaba.druid.sql.dialect.oracle.ast.stmt.OracleSelectJoin;
 import com.alibaba.druid.sql.dialect.oracle.ast.stmt.OracleSelectPivot;
 import com.alibaba.druid.sql.dialect.oracle.ast.stmt.OracleSelectQueryBlock;
@@ -109,21 +106,17 @@ public interface OracleASTVisitor extends SQLASTVisitor {
 
     void endVisit(OracleAnalyticWindowing x);
 
-    void endVisit(OracleDateExpr x);
+    void endVisit(SQLDateExpr x);
 
     void endVisit(OracleDbLinkExpr x);
 
     void endVisit(OracleDeleteStatement x);
-
-    void endVisit(OracleExtractExpr x);
 
     void endVisit(OracleIntervalExpr x);
 
     void endVisit(OracleOuterExpr x);
 
     void endVisit(OracleSelectForUpdate x);
-
-    void endVisit(OracleSelectHierachicalQueryClause x);
 
     void endVisit(OracleSelectJoin x);
 
@@ -147,21 +140,17 @@ public interface OracleASTVisitor extends SQLASTVisitor {
 
     boolean visit(OracleAnalyticWindowing x);
 
-    boolean visit(OracleDateExpr x);
+    boolean visit(SQLDateExpr x);
 
     boolean visit(OracleDbLinkExpr x);
 
     boolean visit(OracleDeleteStatement x);
-
-    boolean visit(OracleExtractExpr x);
 
     boolean visit(OracleIntervalExpr x);
 
     boolean visit(OracleOuterExpr x);
 
     boolean visit(OracleSelectForUpdate x);
-
-    boolean visit(OracleSelectHierachicalQueryClause x);
 
     boolean visit(OracleSelectJoin x);
 
@@ -446,10 +435,6 @@ public interface OracleASTVisitor extends SQLASTVisitor {
     boolean visit(OracleAlterTablespaceStatement x);
 
     void endVisit(OracleAlterTablespaceStatement x);
-
-    boolean visit(OracleCreateSequenceStatement x);
-
-    void endVisit(OracleCreateSequenceStatement x);
 
     boolean visit(OracleExitStatement x);
 
